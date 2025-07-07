@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Gerir Tabulações</h2>
+
+    <!-- Formulário para adicionar nova tabulação -->
+    <div class="card mb-4">
+        <div class="card-header">
+            Adicionar Nova Tabulação
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('main.add_tabulation') }}" method="POST">
+                <div class="form-row align-items-end">
+                    <div class="col-md-7">
+                        <label for="name">Nome da Tabulação</label>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Ex: Venda, Não Atendeu" required>
+                    </div>
+                    <!-- CAMPO PARA ESCOLHER A COR -->
+                    <div class="col-md-2">
+                        <label for="color">Cor do Botão</label>
+                        <input type="color" class="form-control" id="color" name="color" value="#007bff">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-success btn-block">Adicionar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de tabulações existentes -->
+    <div class="card">
+        <div class="card-header">
+            Tabulações Existentes
+        </div>
+        <div class="card-body">
+            {% if tabulations %}
+            <ul class="list-group">
+                {% for tab in tabulations %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>
+                        <!-- Mostra a cor escolhida ao lado do nome -->
+                        <span class="d-inline-block" style="width: 20px; height: 20px; background-color: {{ tab.color }}; border-radius: 50%; margin-right: 10px; vertical-align: middle;"></span>
+                        {{ tab.name }}
+                    </span>
+                    <form action="{{ url_for('main.delete_tabulation', id=tab.id) }}" method="POST" onsubmit="return confirm('Tem a certeza que quer eliminar esta tabulação?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted">Ainda não existem tabulações. Adicione uma acima.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

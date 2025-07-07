@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Painel do Consultor</h2>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center d-flex flex-column justify-content-center">
+                    <h5 class="card-title">Atendimento de Leads</h5>
+                    <p class="card-text">
+                        Você tem <strong>{{ leads_em_atendimento }}</strong> leads na sua carteira para atender.
+                    </p>
+                    {% if leads_em_atendimento > 0 %}
+                        <a href="{{ url_for('main.atendimento') }}" class="btn btn-success btn-lg mt-auto">Iniciar Atendimento</a>
+                    {% else %}
+                        <p class="text-muted mt-auto">A sua carteira está vazia. Pegue novos leads para começar a trabalhar.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center d-flex flex-column justify-content-center">
+                    <h5 class="card-title">Completar Carteira de Leads</h5>
+                    
+                    {% if not time_gate_passed %}
+                        <p class="text-warning">A liberação de novos leads começa às <strong>08:55</strong>.</p>
+                    {% elif action_taken_today %}
+                        <p class="text-info">Você já completou a sua carteira hoje. Volte amanhã para pegar mais leads.</p>
+                    {% elif vagas_na_carteira > 0 %}
+                        <p class="card-text">
+                            Você pode pegar mais <strong>{{ vagas_na_carteira }}</strong> leads para completar a sua carteira de 100.
+                        </p>
+                        <form action="{{ url_for('main.pegar_leads') }}" method="POST" class="mt-auto">
+                            <button type="submit" class="btn btn-primary btn-lg">Pegar Leads da Base</button>
+                        </form>
+                    {% else %}
+                        <p class="text-muted mt-auto">A sua carteira está cheia. Finalize os atendimentos atuais para poder pegar novos leads.</p>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Histórico de Atendimentos dos últimos 5 dias</span>
+                    <form method="GET" action="{{ url_for('main.consultor_dashboard') }}" class="form-inline my-2 my-lg-0">
+                        <input class="form-control mr-sm-2" type="search" name="search_history" placeholder="Buscar no histórico..." aria-label="Search" value="{{ search_history or '' }}">
+                        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Buscar</button>
+                    </form>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% if todays_tabulated_leads %}
+                        <ul class="list-group list-group-flush">
+                            {% for lead in todays_tabulated_leads %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ lead.nome_cliente }}</strong>
+                                    <small class="text-muted d-block">{{ lead.telefone }} - Tabulado às {{ lead.data_tabulacao.strftime('%H:%M') }}</small>
+                                </div>
+                                <div>
+                                    {% if lead.tabulation %}
+                                    <span class="badge" style="background-color: {{ lead.tabulation.color }}; color: white; padding: .5em .7em; margin-right: 10px;">
+                                        {{ lead.tabulation.name }}
+                                    </span>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-secondary edit-btn" 
+                                            data-toggle="modal" 
+                                            data-target="#editTabulationModal"
+                                            data-lead-id="{{ lead.id }}"
+                                            data-lead-name="{{ lead.nome_cliente }}">
+                                        Editar
+                                    </button>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-center text-muted">Nenhum lead tabulado hoje corresponde à sua busca.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editTabulationModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editModalLabel">Editar Tabulação para </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="edit-form" method="POST">
+          <div class="modal-body">
+            <p>Selecione a nova tabulação para o cliente <strong id="lead-name-in-modal"></strong>.</p>
+            <div class="form-group">
+                <label for="new_tabulation_id">Nova Tabulação</label>
+                <select class="form-control" name="new_tabulation_id" required>
+                    <option value="" disabled selected>Escolha uma opção...</option>
+                    {% for tab in all_tabulations %}
+                        <option value="{{ tab.id }}">{{ tab.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Alteração</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+$(document).ready(function() {
+    $(document).on('click', '.edit-btn', function() {
+        const leadId = $(this).data('lead-id');
+        const leadName = $(this).data('lead-name');
+        const formAction = "{{ url_for('main.retabulate_lead', lead_id=0) }}".replace('0', leadId);
+        
+        $('#edit-form').attr('action', formAction);
+        $('#editModalLabel').text('Editar Tabulação para ' + leadName);
+        $('#lead-name-in-modal').text(leadName);
+    });
+});
+</script>
+{% endblock %}
