@@ -1,4 +1,4 @@
-# app/routes.py (VERSÃO FINAL E CORRIGIDA)
+# app/routes.py (VERSÃO FINAL COM ActivityLog E CORREÇÃO NO DASHBOARD ADMIN)
 
 import pandas as pd
 import io
@@ -54,7 +54,6 @@ def register():
         return redirect(url_for('main.login'))
     return render_template('register.html', title='Registrar Administrador')
 
-
 @bp.route('/logout')
 def logout():
     logout_user()
@@ -101,6 +100,7 @@ def admin_dashboard():
 @bp.route('/upload_step1', methods=['POST'])
 @login_required
 def upload_step1():
+    # ... (código existente sem alterações)
     if not current_user.is_admin:
         return redirect(url_for('main.index'))
 
@@ -160,6 +160,7 @@ def upload_step1():
 @bp.route('/upload_step2_process', methods=['POST'])
 @login_required
 def upload_step2_process():
+    # ... (código existente sem alterações)
     if not current_user.is_admin:
         return redirect(url_for('main.index'))
 
@@ -273,6 +274,8 @@ def upload_step2_process():
     return redirect(url_for('main.admin_dashboard'))
 
 # --- ROTAS DE GESTÃO (ADMIN) ---
+# ... (código existente sem alterações)
+# ...
 @bp.route('/admin/products')
 @login_required
 def manage_products():
@@ -731,7 +734,6 @@ def atender_lead(lead_id):
 def retabulate_lead(lead_id):
     lead = Lead.query.get_or_404(lead_id)
     
-    # ATUALIZADO: Pega o consultor original do último log de atividade do lead
     last_activity = ActivityLog.query.filter_by(lead_id=lead.id).order_by(ActivityLog.timestamp.desc()).first()
     original_consultor_id = last_activity.user_id if last_activity else None
     
@@ -749,7 +751,6 @@ def retabulate_lead(lead_id):
         flash('Tabulação selecionada inválida.', 'danger')
         return redirect(url_for('main.consultor_dashboard'))
     
-    # A retabulação sempre define o lead como Tabulado e atribui ao consultor original
     lead.tabulation_id = new_tabulation.id
     lead.status = 'Tabulado'
     lead.data_tabulacao = datetime.utcnow()
@@ -757,7 +758,7 @@ def retabulate_lead(lead_id):
 
     retab_log = ActivityLog(
         lead_id=lead.id,
-        user_id=current_user.id, # Loga quem fez a edição (pode ser o próprio consultor ou um admin)
+        user_id=current_user.id,
         tabulation_id=new_tabulation.id,
         action_type='Retabulação'
     )
