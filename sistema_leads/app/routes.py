@@ -1,4 +1,4 @@
-# app/routes.py (VERSÃO FINAL COM ActivityLog E CORREÇÃO NO DASHBOARD ADMIN)
+# app/routes.py (VERSÃO FINAL E CORRIGIDA)
 
 import pandas as pd
 import io
@@ -19,7 +19,6 @@ from sqlalchemy.orm import joinedload
 bp = Blueprint('main', __name__)
 
 # --- ROTAS DE AUTENTICAÇÃO E GERAIS ---
-# (Nenhuma alteração nesta seção)
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -274,8 +273,6 @@ def upload_step2_process():
     return redirect(url_for('main.admin_dashboard'))
 
 # --- ROTAS DE GESTÃO (ADMIN) ---
-# ... (O resto do arquivo continua idêntico ao que você enviou)
-# ...
 @bp.route('/admin/products')
 @login_required
 def manage_products():
@@ -448,8 +445,6 @@ def export_all_mailings():
     return Response(csv_data, mimetype="text/csv", headers={"Content-disposition": f"attachment; filename={filename}"})
 
 # --- ROTAS DE GESTÃO DE USUÁRIOS ---
-# ... (O resto do arquivo continua idêntico ao que você enviou)
-# ...
 @bp.route('/users')
 @login_required
 def manage_users():
@@ -517,8 +512,6 @@ def delete_user(id):
     return redirect(url_for('main.manage_users'))
 
 # --- ROTAS DO CONSULTOR ---
-# ... (O resto do arquivo continua idêntico ao que você enviou)
-# ...
 @bp.route('/consultor/dashboard')
 @login_required
 def consultor_dashboard():
@@ -634,8 +627,6 @@ def pegar_leads_selecionados():
     return redirect(url_for('main.consultor_dashboard'))
 
 # --- ROTAS DE ATENDIMENTO E OUTRAS ---
-# ... (O resto do arquivo continua idêntico ao que você enviou)
-# ...
 @bp.route('/atendimento')
 @login_required
 def atendimento():
@@ -739,7 +730,10 @@ def atender_lead(lead_id):
 @login_required
 def retabulate_lead(lead_id):
     lead = Lead.query.get_or_404(lead_id)
-    original_consultor_id = lead.consultor_id
+    
+    # ATUALIZADO: Pega o consultor original do último log de atividade do lead
+    last_activity = ActivityLog.query.filter_by(lead_id=lead.id).order_by(ActivityLog.timestamp.desc()).first()
+    original_consultor_id = last_activity.user_id if last_activity else None
     
     if original_consultor_id != current_user.id and not current_user.is_admin:
         flash('Não pode editar um lead que não é seu.', 'danger')
@@ -755,13 +749,15 @@ def retabulate_lead(lead_id):
         flash('Tabulação selecionada inválida.', 'danger')
         return redirect(url_for('main.consultor_dashboard'))
     
+    # A retabulação sempre define o lead como Tabulado e atribui ao consultor original
     lead.tabulation_id = new_tabulation.id
     lead.status = 'Tabulado'
     lead.data_tabulacao = datetime.utcnow()
+    lead.consultor_id = original_consultor_id
 
     retab_log = ActivityLog(
         lead_id=lead.id,
-        user_id=original_consultor_id,
+        user_id=current_user.id, # Loga quem fez a edição (pode ser o próprio consultor ou um admin)
         tabulation_id=new_tabulation.id,
         action_type='Retabulação'
     )
